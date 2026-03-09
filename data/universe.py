@@ -1,8 +1,9 @@
 # trading_engine/data/universe.py
 
 UNIVERSE = {
-    "CHEMICALS_1": ["DOW", "HUN", "CE", "WLK", "LYB", "OLN"],
     "BASE_METALS": ["SCCO", "FCX", "TECK", "HBM"],
+    "INDUSTRIALS_ELEC": ["ETN", "NVT", "ITT"],
+    "CHEMICALS_1": ["DOW", "HUN", "CE", "WLK", "LYB", "OLN"],
     "AG_EQUIP": ["AGCO", "DE", "CNH"],
     "MIDSTREAM_1": ["LNG", "KMI", "WMB"],
     "SW_SOFTWARE_1": ["CDNS", "NOW", "ADBE"],
@@ -27,7 +28,6 @@ UNIVERSE = {
     "MEDS_2": ["GILD", "IBB"],
     
     "OIL_ENERGY": ["COP", "EPM", "EOG", "FANG"],
-    "INDUSTRIALS_ELEC": ["ETN", "NVT", "ITT"],
 }
 
 

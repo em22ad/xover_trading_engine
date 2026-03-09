@@ -203,13 +203,30 @@ def run_engine():
     use_custom_date = analysis_cfg.get("use_custom", False)
     custom_date_str = analysis_cfg.get("custom_date", None)
 
+    # NEW: optional global start_date for hard trim
+    start_date_str = config.get("start_date", None)
+    start_date = (
+        datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        if start_date_str
+        else None
+    )
+
     print("\n=== LOADING PRICE DATA ===")
     prices_ohlcv = load_or_update_price_cache(UNIVERSE)
 
-    # Apply custom analysis date if configured
-    if use_custom_date and custom_date_str:
-        custom_date = datetime.strptime(custom_date_str, "%Y-%m-%d").date()
-        prices_ohlcv = prices_ohlcv.loc[prices_ohlcv.index.date <= custom_date]
+    # Apply global window: [start_date, custom_date] if provided
+    if start_date or (use_custom_date and custom_date_str):
+        idx_dates = prices_ohlcv.index.date
+        mask = pd.Series(True, index=prices_ohlcv.index)
+
+        if start_date:
+            mask &= idx_dates >= start_date
+
+        if use_custom_date and custom_date_str:
+            custom_date = datetime.strptime(custom_date_str, "%Y-%m-%d").date()
+            mask &= idx_dates <= custom_date
+
+        prices_ohlcv = prices_ohlcv.loc[mask]
 
     print("\n=== PREPARING NORMALIZED SERIES ===")
     series = prepare_normalized_series(prices_ohlcv, mode=price_field)

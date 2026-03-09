@@ -1,0 +1,23 @@
+# Global data window for TEGH backtesting (hard trim)
+start_date: "2025-02-01"      # YYYY-MM-DD
+end_date: "2026-03-05"        # YYYY-MM-DD
+
+# config.yaml
+
+price_field: "Low"     # Options: High, Low, Close, HL2, HLC3
+
+rule_filter_mode: "sector_strict_rule_clean"
+top_rules_per_sector: 2
+
+analysis_date:
+  use_custom: true
+  custom_date: "2026-03-09"   # YYYY-MM-DD
+
+strict_mode:
+  sector_filters:
+    min_mean: 0.0
+    min_win_rate: 0.50
+    min_sharpe: -0.001
+    min_sortino: -0.001
+    min_stability: -0.001
+    min_max_dd: -0.50

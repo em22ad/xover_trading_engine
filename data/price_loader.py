@@ -21,10 +21,11 @@ if _custom_date_str:
 else:
     CUSTOM_ANALYSIS_DATE = None
 
-DATA_DIR = "data"
+#DATA_DIR = "data"
+DATA_DIR = os.path.dirname(__file__)
 CACHE_PATH = os.path.join(DATA_DIR, "historical_prices.parquet")
 
-LOOKBACK_YEARS = 1
+LOOKBACK_YEARS = 3
 DATA_INTERVAL = "1d"
 BATCH_SIZE = 6
 MAX_RETRIES = 3
