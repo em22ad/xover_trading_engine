@@ -1,10 +1,9 @@
-# trading_engine/reporting/sector_filters.py
-
 import pandas as pd
 import numpy as np
 from typing import List, Tuple
 
 from trading_engine.config.config_loader import load_config
+from trading_engine.backtest.rule_scoring import RULE_KEY_COLS
 
 # Load strict-mode thresholds from config.yaml
 config = load_config()
@@ -141,14 +140,42 @@ def _evaluate_sector_weighted_strict(row: pd.Series) -> Tuple[bool, List[str]]:
     return ok, reasons
 
 
-def compute_investable_sectors(trades: pd.DataFrame) -> pd.DataFrame:
-    daily = _compute_sector_daily_returns(trades)
+def compute_investable_sectors(
+    trades: pd.DataFrame,
+    rule_stability_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    Compute sector investability.
+
+    If rule_stability_df is provided, restrict trades to rules that are
+    themselves investable (good rules only, based on rule_stability.is_investable).
+    Otherwise, fall back to using all trades (original behavior).
+    """
+    filtered_trades = trades
+
+    if rule_stability_df is not None and not rule_stability_df.empty:
+        good_rules = rule_stability_df[rule_stability_df["is_investable"]].copy()
+
+        # We expect trades to already have rule_id + RULE_KEY_COLS from backtest_signals
+        if "rule_id" in filtered_trades.columns:
+            merge_cols = list(RULE_KEY_COLS) + ["rule_id"]
+            filtered_trades = filtered_trades.merge(
+                good_rules[merge_cols],
+                on=RULE_KEY_COLS + ["rule_id"],
+                how="inner",
+                suffixes=("", "_rulestab"),
+            )
+        # If rule_id is missing, we silently fall back to original behavior
+
+    daily = _compute_sector_daily_returns(filtered_trades)
     metrics = _compute_sector_metrics(daily)
 
     if metrics.empty:
         return metrics
 
-    metrics["stability"] = metrics["group"].apply(lambda g: _compute_stability_score(daily, g))
+    metrics["stability"] = metrics["group"].apply(
+        lambda g: _compute_stability_score(daily, g)
+    )
 
     investable_flags = []
     investable_reasons = []

@@ -11,6 +11,7 @@ def print_portfolio_trade_table(used_trades: pd.DataFrame, equity_curve: pd.Seri
     """
     Color-coded table of trades used in the portfolio backtest.
     Now includes OPEN trades (exit_date = None), flagged clearly.
+    Adds expected direction of the lagger based on the rule's direction.
     """
 
     if used_trades.empty:
@@ -36,11 +37,15 @@ def print_portfolio_trade_table(used_trades: pd.DataFrame, equity_curve: pd.Seri
             / first_equity * 100
         )
 
+    # Expected direction of lagger
+    df["expected_direction"] = df["direction"].map({1: "UP", -1: "DOWN"}).fillna("N/A")
+
     # Build printable table
     table = pd.DataFrame({
         "Rule": df["rule_id"],
         "Leaders": df["leaders"].apply(lambda x: ", ".join(x) if isinstance(x, list) else x),
         "Lagger": df["ticker"],
+        "Expected Dir": df["expected_direction"],
         "Entry": df["entry_date"].dt.strftime("%Y-%m-%d"),
         "Exit": df["exit_date"].dt.strftime("%Y-%m-%d").fillna("OPEN"),
         "PnL %": df["pnl_pct"].round(2),
@@ -57,6 +62,7 @@ def print_portfolio_trade_table(used_trades: pd.DataFrame, equity_curve: pd.Seri
                 f"{row['Rule']:6}  "
                 f"{row['Leaders'][:25]:25}  "
                 f"{row['Lagger']:6}  "
+                f"{row['Expected Dir']:5}  "
                 f"{row['Entry']}  "
                 f"{'OPEN':10}  "
                 f"{'   n/a':>7}  "
@@ -76,6 +82,7 @@ def print_portfolio_trade_table(used_trades: pd.DataFrame, equity_curve: pd.Seri
                 f"{row['Rule']:6}  "
                 f"{row['Leaders'][:25]:25}  "
                 f"{row['Lagger']:6}  "
+                f"{row['Expected Dir']:5}  "
                 f"{row['Entry']}  "
                 f"{row['Exit']:10}  "
                 f"{color}{pnl:6.2f}%{RESET}  "
@@ -83,5 +90,3 @@ def print_portfolio_trade_table(used_trades: pd.DataFrame, equity_curve: pd.Seri
             )
 
     print()
-
-

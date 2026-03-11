@@ -1,6 +1,6 @@
 # Global data window for TEGH backtesting (hard trim)
 start_date: "2025-02-01"      # YYYY-MM-DD
-end_date: "2026-03-05"        # YYYY-MM-DD
+end_date: "2026-03-11"        # YYYY-MM-DD
 
 # config.yaml
 
@@ -11,7 +11,7 @@ top_rules_per_sector: 2
 
 analysis_date:
   use_custom: true
-  custom_date: "2026-03-09"   # YYYY-MM-DD
+  custom_date: "2026-03-11"   # YYYY-MM-DD
 
 strict_mode:
   sector_filters:

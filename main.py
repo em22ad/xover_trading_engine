@@ -1,3 +1,5 @@
+# trading_engine/main.py
+
 import os
 from datetime import datetime
 
@@ -240,16 +242,19 @@ def run_engine():
     trades_df = backtest_signals(series, signals)
     print(f"Generated {len(trades_df):,} trades.")
 
-    os.makedirs("research", exist_ok=True)
-    trades_df.to_csv("research/all_trades_initial.csv", index=False)
+    RESEARCH_DIR = os.path.join(os.path.dirname(__file__), "research")
+    os.makedirs(RESEARCH_DIR, exist_ok=True)
+    trades_df.to_csv(os.path.join(RESEARCH_DIR, "all_trades_initial.csv"), index=False)
 
     print("\n=== RULE SCORING ===")
     scores_df = score_rules(trades_df)
-    scores_df.to_csv("research/rule_scores.csv", index=False)
+    scores_df.to_csv(os.path.join(RESEARCH_DIR, "rule_scores.csv"), index=False)
 
     # Second pass: attach rule_id + rule_quality_score to trades
     trades_df = backtest_signals(series, signals, scored_rules=scores_df)
-    trades_df.to_csv("research/all_trades_with_rule_id.csv", index=False)
+    trades_df.to_csv(
+        os.path.join(RESEARCH_DIR, "all_trades_with_rule_id.csv"), index=False
+    )
 
     print("\n=== SYSTEM SUMMARY (trade-level) ===")
     summarize_overall_backtest(trades_df)
@@ -258,10 +263,15 @@ def run_engine():
     # Compute rule stability and sector investability
     # -------------------------------------------------
     stability_df = compute_rule_stability(trades_df, scores_df)
-    stability_df.to_csv("research/rule_stability.csv", index=False)
+    stability_df.to_csv(
+        os.path.join(RESEARCH_DIR, "rule_stability.csv"), index=False
+    )
 
-    sector_df = compute_investable_sectors(trades_df)
-    sector_df.to_csv("research/sector_investability.csv", index=False)
+    # NEW: sector investability based only on good rules (rule_stability.is_investable)
+    sector_df = compute_investable_sectors(trades_df, stability_df)
+    sector_df.to_csv(
+        os.path.join(RESEARCH_DIR, "sector_investability.csv"), index=False
+    )
 
     # -------------------------------------------------
     # 1) INVESTABLE SECTORS (ranked by win rate)
@@ -282,13 +292,14 @@ def run_engine():
     candidate_rules = candidate_rules.dropna(subset=["rule_quality_score"])
 
     if candidate_rules.empty:
-        print("No investable rules in high-win-rate sectors — skipping portfolio backtest.\n")
+        print(
+            "No investable rules in high-win-rate sectors — skipping portfolio backtest.\n"
+        )
         top_rules = pd.DataFrame()
     else:
         N_GLOBAL_RULES = 10
         top_rules = (
-            candidate_rules
-            .sort_values("rule_quality_score", ascending=False)
+            candidate_rules.sort_values("rule_quality_score", ascending=False)
             .head(N_GLOBAL_RULES)
             .copy()
         )
@@ -309,7 +320,9 @@ def run_engine():
         )
 
         if filtered_trades.empty:
-            print("No trades match selected top rules — skipping portfolio backtest.\n")
+            print(
+                "No trades match selected top rules — skipping portfolio backtest.\n"
+            )
             portfolio_results = None
         else:
             portfolio_results = run_portfolio_for_trade_suggestions(
@@ -322,8 +335,12 @@ def run_engine():
         metrics = portfolio_results["metrics"]
         used_trades = portfolio_results["used_trades"]
 
-        equity.to_csv("research/portfolio_equity_curve.csv")
-        used_trades.to_csv("research/portfolio_used_trades.csv", index=False)
+        equity.to_frame(name="equity").to_csv(
+            os.path.join(RESEARCH_DIR, "portfolio_equity_curve.csv")
+        )
+        used_trades.to_csv(
+            os.path.join(RESEARCH_DIR, "portfolio_used_trades.csv"), index=False
+        )
 
         print("\n=== PORTFOLIO SUMMARY ===")
         summarize_portfolio(metrics)
@@ -336,3 +353,4 @@ def run_engine():
 
 if __name__ == "__main__":
     run_engine()
+
