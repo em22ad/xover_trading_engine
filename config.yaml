@@ -1,23 +1,35 @@
 # Global data window for TEGH backtesting (hard trim)
 start_date: "2025-02-01"      # YYYY-MM-DD
-end_date: "2026-03-11"        # YYYY-MM-DD
+end_date: "2026-02-26"        # YYYY-MM-DD
 
 # config.yaml
 
 price_field: "Low"     # Options: High, Low, Close, HL2, HLC3
 
 rule_filter_mode: "sector_strict_rule_clean"
-top_rules_per_sector: 2
+top_rules_per_sector: 3
 
 analysis_date:
   use_custom: true
-  custom_date: "2026-03-11"   # YYYY-MM-DD
+  custom_date: "2026-02-26"   # YYYY-MM-DD
 
 strict_mode:
   sector_filters:
-    min_mean: 0.0
-    min_win_rate: 0.50
-    min_sharpe: -0.001
-    min_sortino: -0.001
-    min_stability: -0.001
-    min_max_dd: -0.50
+    min_mean: 0.0002
+    min_win_rate: 0.48
+    min_sharpe: 0.15
+    min_sortino: 0.20
+    min_stability: 0.0005
+    min_max_dd: -0.15
+#strict_mode:
+#  sector_filters:
+#    min_mean: 0.0
+#    min_win_rate: 0.50
+#    min_sharpe: -0.001
+#    min_sortino: -0.001
+#    min_stability: -0.001
+#    min_max_dd: -0.50
+min_rule_quality_score_by_sector:
+  INDUSTRIALS_ELEC: 0.27
+  BASE_METALS: 0.27
+  REMAINING: 0.27

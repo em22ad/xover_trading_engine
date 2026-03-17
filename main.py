@@ -46,11 +46,7 @@ from trading_engine.reporting.portfolio_trade_table import (
 # Helpers for clean, decision-ready output
 # ----------------------------------------------------------------------
 
-
 def print_investable_sectors_ranked(sector_df: pd.DataFrame) -> None:
-    """
-    Print only investable sectors, ranked by win rate, in a compact table.
-    """
     investable = sector_df.copy()
     if investable.empty:
         print("\n=== INVESTABLE SECTORS (Ranked by Win Rate) ===")
@@ -87,12 +83,6 @@ def print_investable_sectors_ranked(sector_df: pd.DataFrame) -> None:
 
 
 def build_rule_narrative(row: pd.Series) -> str:
-    """
-    Build a clean, human-readable narrative for a rule.
-    All percentages are formatted properly.
-    No engine logic is changed.
-    """
-
     sector = row.get("group", "UNKNOWN_SECTOR")
     lookback = row.get("lookback")
     participation = row.get("participation")
@@ -102,7 +92,6 @@ def build_rule_narrative(row: pd.Series) -> str:
 
     parts = []
 
-    # Participation threshold
     if participation is not None and lookback is not None:
         parts.append(
             f"If at least {participation * 100:.0f}% of tickers in {sector} "
@@ -115,17 +104,14 @@ def build_rule_narrative(row: pd.Series) -> str:
     else:
         parts.append(f"If tickers in {sector} show a strong move")
 
-    # Lagger threshold
     if lagger_max_move is not None:
         parts.append(
             f"while the lagging ticker moves less than {lagger_max_move * 100:.2f}%"
         )
 
-    # Entry lag
     if entry_lag is not None:
         parts.append(f"then enter after {int(entry_lag)} day(s)")
 
-    # Holding period
     if hold_days is not None:
         parts.append(f"and hold for {int(hold_days)} day(s)")
 
@@ -137,10 +123,6 @@ def build_rule_narrative(row: pd.Series) -> str:
 
 
 def print_top_global_rules_table(top_rules: pd.DataFrame) -> None:
-    """
-    Print the top global rules in a ranked table, using only fields that
-    already exist in stability_df.
-    """
     if top_rules.empty:
         print("\n=== TOP 10 GLOBAL RULES (Strict, Ranked by Rule Quality) ===")
         print("No investable rules selected.\n")
@@ -194,10 +176,8 @@ def print_top_global_rules_table(top_rules: pd.DataFrame) -> None:
 # Main engine
 # ----------------------------------------------------------------------
 
-
 def run_engine():
 
-    # Load config
     config = load_config()
     price_field = config.get("price_field", "HL2")
 
@@ -205,7 +185,6 @@ def run_engine():
     use_custom_date = analysis_cfg.get("use_custom", False)
     custom_date_str = analysis_cfg.get("custom_date", None)
 
-    # NEW: optional global start_date for hard trim
     start_date_str = config.get("start_date", None)
     start_date = (
         datetime.strptime(start_date_str, "%Y-%m-%d").date()
@@ -216,7 +195,6 @@ def run_engine():
     print("\n=== LOADING PRICE DATA ===")
     prices_ohlcv = load_or_update_price_cache(UNIVERSE)
 
-    # Apply global window: [start_date, custom_date] if provided
     if start_date or (use_custom_date and custom_date_str):
         idx_dates = prices_ohlcv.index.date
         mask = pd.Series(True, index=prices_ohlcv.index)
@@ -238,7 +216,6 @@ def run_engine():
     print(f"Detected {len(signals):,} lag signals.")
 
     print("\n=== GENERATING TRADES ===")
-    # First pass: generate trades WITHOUT rule_id
     trades_df = backtest_signals(series, signals)
     print(f"Generated {len(trades_df):,} trades.")
 
@@ -250,7 +227,6 @@ def run_engine():
     scores_df = score_rules(trades_df)
     scores_df.to_csv(os.path.join(RESEARCH_DIR, "rule_scores.csv"), index=False)
 
-    # Second pass: attach rule_id + rule_quality_score to trades
     trades_df = backtest_signals(series, signals, scored_rules=scores_df)
     trades_df.to_csv(
         os.path.join(RESEARCH_DIR, "all_trades_with_rule_id.csv"), index=False
@@ -259,28 +235,18 @@ def run_engine():
     print("\n=== SYSTEM SUMMARY (trade-level) ===")
     summarize_overall_backtest(trades_df)
 
-    # -------------------------------------------------
-    # Compute rule stability and sector investability
-    # -------------------------------------------------
     stability_df = compute_rule_stability(trades_df, scores_df)
     stability_df.to_csv(
         os.path.join(RESEARCH_DIR, "rule_stability.csv"), index=False
     )
 
-    # NEW: sector investability based only on good rules (rule_stability.is_investable)
     sector_df = compute_investable_sectors(trades_df, stability_df)
     sector_df.to_csv(
         os.path.join(RESEARCH_DIR, "sector_investability.csv"), index=False
     )
 
-    # -------------------------------------------------
-    # 1) INVESTABLE SECTORS (ranked by win rate)
-    # -------------------------------------------------
     print_investable_sectors_ranked(sector_df)
 
-    # -------------------------------------------------
-    # 2) TOP 10 GLOBAL RULES (strict, from sectors with win_rate >= 55%)
-    # -------------------------------------------------
     high_win_sectors = set(
         sector_df.loc[sector_df["win_rate"] >= 0.51, "group"].unique()
     )
@@ -290,6 +256,23 @@ def run_engine():
     ].copy()
 
     candidate_rules = candidate_rules.dropna(subset=["rule_quality_score"])
+
+    # -------------------------------------------------
+    # ⭐ INSERTED PATCH: per-sector rule-quality thresholds
+    # -------------------------------------------------
+    sector_thresholds = config.get("min_rule_quality_score_by_sector", {})
+    default_threshold = sector_thresholds.get("REMAINING", 0.0)
+
+    def threshold_for_sector(sector):
+        return sector_thresholds.get(sector, default_threshold)
+
+    candidate_rules = candidate_rules[
+        candidate_rules.apply(
+            lambda row: row["rule_quality_score"] >= threshold_for_sector(row["group"]),
+            axis=1,
+        )
+    ]
+    # -------------------------------------------------
 
     if candidate_rules.empty:
         print(
@@ -306,9 +289,6 @@ def run_engine():
 
     print_top_global_rules_table(top_rules)
 
-    # -------------------------------------------------
-    # 3) PORTFOLIO BACKTEST (using top global rules)
-    # -------------------------------------------------
     if top_rules.empty:
         print("No investable rules — skipping portfolio backtest.\n")
         portfolio_results = None
@@ -345,12 +325,8 @@ def run_engine():
         print("\n=== PORTFOLIO SUMMARY ===")
         summarize_portfolio(metrics)
 
-        # -------------------------------------------------
-        # 4) ALL TRADES USED IN THE PORTFOLIO
-        # -------------------------------------------------
         print_portfolio_trade_table(used_trades, equity)
 
 
 if __name__ == "__main__":
     run_engine()
-
